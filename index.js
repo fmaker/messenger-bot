@@ -10,10 +10,11 @@ class Bot extends EventEmitter {
     super()
 
     opts = opts || {}
-    if (!opts.token) {
+    if (!(opts.tokenCbk || opts.pageTokenCbk)) {
       throw new Error('Missing page token. See FB documentation for details: https://developers.facebook.com/docs/messenger-platform/quickstart')
     }
     this.token = opts.token
+    this.pageTokenCbk = opts.pageTokenCbk
     this.app_secret = opts.app_secret || false
     this.verify_token = opts.verify || false
   }
@@ -26,7 +27,7 @@ class Bot extends EventEmitter {
       uri: `https://graph.facebook.com/v2.6/${id}`,
       qs: {
         fields: 'first_name,last_name,profile_pic,locale,timezone,gender',
-        access_token: this.token
+        access_token: this.pageTokenCbk(pageId) || this.token
       },
       json: true
     }, (err, res, body) => {
@@ -37,14 +38,17 @@ class Bot extends EventEmitter {
     })
   }
 
-  sendMessage (recipient, payload, cb) {
+  sendMessage (address, payload, cb) {
+    const recipient = address.user.id;
+    const pageId= address.bot.id;
+
     if (!cb) cb = Function.prototype
 
     request({
       method: 'POST',
       uri: 'https://graph.facebook.com/v2.6/me/messages',
       qs: {
-        access_token: this.token
+        access_token: this.pageTokenCbk(pageId) || this.token
       },
       json: {
         recipient: { id: recipient },
@@ -65,7 +69,7 @@ class Bot extends EventEmitter {
       method: 'POST',
       uri: 'https://graph.facebook.com/v2.6/me/messages',
       qs: {
-        access_token: this.token
+        access_token: this.pageTokenCbk(pageId) || this.token
       },
       json: {
         recipient: {
@@ -88,7 +92,7 @@ class Bot extends EventEmitter {
       method: 'POST',
       uri: 'https://graph.facebook.com/v2.6/me/thread_settings',
       qs: {
-        access_token: this.token
+        access_token: this.pageTokenCbk(pageId) || this.token
       },
       json: {
         setting_type: 'call_to_actions',
@@ -110,7 +114,7 @@ class Bot extends EventEmitter {
       method: 'DELETE',
       uri: 'https://graph.facebook.com/v2.6/me/thread_settings',
       qs: {
-        access_token: this.token
+        access_token: this.pageTokenCbk(pageId) || this.token
       },
       json: {
         setting_type: 'call_to_actions',
