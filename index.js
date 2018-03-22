@@ -44,22 +44,38 @@ class Bot extends EventEmitter {
 
     if (!cb) cb = Function.prototype
 
-    request({
-      method: 'POST',
-      uri: 'https://graph.facebook.com/v2.6/me/messages',
-      qs: {
-        access_token: this.pageTokenCbk(pageId) || this.token
-      },
-      json: {
-        recipient: { id: recipient },
-        message: payload
+    const pageTokenCbk = this.pageTokenCbk;
+    new Promise(function(resolve,reject) {
+      if(pageTokenCbk) {
+        resolve(pageTokenCbk(pageId));
       }
-    }, (err, res, body) => {
-      if (err) return cb(err)
-      if (body.error) return cb(body.error)
+      else{
+        resolve();
+      }
+    }).then(cbkToken => {
+      const token = cbkToken || this.token;
 
-      cb(null, body)
-    })
+      const req = {
+        method: 'POST',
+        uri: 'https://graph.facebook.com/v2.6/me/messages',
+        qs: {
+          access_token: token
+        },
+        json: {
+          recipient: { id: recipient },
+          message: payload
+        }
+      };
+
+      request(req, (err, res, body) => {
+        if (err) return cb(err)
+        if (body.error) return cb(body.error)
+
+        cb(null, body)
+      })
+
+    });
+
   }
 
   sendSenderAction (recipient, senderAction, cb) {
