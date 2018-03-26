@@ -170,19 +170,10 @@ class Bot extends EventEmitter {
 
   middleware () {
     return (req, res) => {
-      // we always write 200, otherwise facebook will keep retrying the request
-      res.writeHead(200, { 'Content-Type': 'application/json' })
-      if (req.url === '/_status') return res.end(JSON.stringify({status: 'ok'}))
-      if (this.verify_token && req.method === 'GET') return this._verify(req, res)
-      if (req.method !== 'POST') return res.end()
 
       let body = ''
 
-      req.on('data', (chunk) => {
-        body += chunk
-      })
-
-      req.on('end', () => {
+      let handleMsg = function() {
         // check message integrity
         if (this.app_secret) {
           let hmac = crypto.createHmac('sha1', this.app_secret)
@@ -198,7 +189,26 @@ class Bot extends EventEmitter {
         this._handleMessage(parsed)
 
         res.end(JSON.stringify({status: 'ok'}))
-      })
+      }
+
+      if (req.complete) {
+        body = String(req.rawBody);
+        handleMsg.call(this);
+      }
+      else {
+        // we always write 200, otherwise facebook will keep retrying the request
+        res.writeHead(200, { 'Content-Type': 'application/json' })
+        if (req.url === '/_status') return res.end(JSON.stringify({status: 'ok'}))
+        if (req.method !== 'POST') return res.end()
+
+        req.on('data', (chunk) => {
+          body += chunk
+        })
+
+        req.on('end', handleMsg);
+      }
+
+      if (this.verify_token && req.method === 'GET') return this._verify(req, res)
     }
   }
 
