@@ -205,7 +205,7 @@ class Bot extends EventEmitter {
           body += chunk
         })
 
-        req.on('end', handleMsg);
+        req.on('end', handleMsg.call(this));
       }
 
       if (this.verify_token && req.method === 'GET') return this._verify(req, res)
