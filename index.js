@@ -52,7 +52,11 @@ class Bot extends EventEmitter {
       else{
         resolve();
       }
-    }).then(cbkToken => {
+    })
+    .catch((error) => {
+      console.error("No page token found for page id: %s",pageId);
+    })
+    .then(cbkToken => {
       const token = cbkToken || this.token;
 
       const req = {
