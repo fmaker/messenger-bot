@@ -44,24 +44,25 @@ class Bot extends EventEmitter {
 
     if (!cb) cb = Function.prototype
 
-    const pageTokenCbk = this.pageTokenCbk;
-    new Promise(function(resolve,reject) {
-      if(pageTokenCbk) {
-        resolve(pageTokenCbk(pageId));
+    new Promise((resolve,reject) => {
+      if(this.pageTokenCbk){
+        return this.pageTokenCbk(pageId).then(token => {
+          resolve(token)
+        })
+      }
+      // UNTESTED!
+      else if(this.token){
+        resolve(this.token)
       }
       else{
-        resolve();
+        reject("No token found!")
       }
     })
-    .catch((error) => {
-      console.error("No page token found for page id: %s",pageId);
-    })
-    .then(cbkToken => {
-      const token = cbkToken || this.token;
+    .then(token => {
 
       const req = {
         method: 'POST',
-        uri: 'https://graph.facebook.com/v2.6/me/messages',
+        uri: 'https://graph.facebook.com/v2.12/me/messages',
         qs: {
           access_token: token
         },
@@ -78,7 +79,10 @@ class Bot extends EventEmitter {
         cb(null, body)
       })
 
-    });
+    })
+    .catch((error) => {
+      console.error("No page token found for page id: %s",pageId);
+    })
 
   }
 
@@ -174,19 +178,10 @@ class Bot extends EventEmitter {
 
   middleware () {
     return (req, res) => {
-      // we always write 200, otherwise facebook will keep retrying the request
-      res.writeHead(200, { 'Content-Type': 'application/json' })
-      if (req.url === '/_status') return res.end(JSON.stringify({status: 'ok'}))
-      if (this.verify_token && req.method === 'GET') return this._verify(req, res)
-      if (req.method !== 'POST') return res.end()
 
       let body = ''
 
-      req.on('data', (chunk) => {
-        body += chunk
-      })
-
-      req.on('end', () => {
+      let handleMsg = function() {
         // check message integrity
         if (this.app_secret) {
           let hmac = crypto.createHmac('sha1', this.app_secret)
@@ -202,7 +197,26 @@ class Bot extends EventEmitter {
         this._handleMessage(parsed)
 
         res.end(JSON.stringify({status: 'ok'}))
-      })
+      }
+
+      if (req.complete) {
+        body = String(req.rawBody);
+        handleMsg.call(this);
+      }
+      else {
+        // we always write 200, otherwise facebook will keep retrying the request
+        res.writeHead(200, { 'Content-Type': 'application/json' })
+        if (req.url === '/_status') return res.end(JSON.stringify({status: 'ok'}))
+        if (req.method !== 'POST') return res.end()
+
+        req.on('data', (chunk) => {
+          body += chunk
+        })
+
+        req.on('end', handleMsg.call(this));
+      }
+
+      if (this.verify_token && req.method === 'GET') return this._verify(req, res)
     }
   }
 
