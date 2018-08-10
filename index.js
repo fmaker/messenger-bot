@@ -187,10 +187,13 @@ class Bot extends EventEmitter {
           let hmac = crypto.createHmac('sha1', this.app_secret)
           hmac.update(body)
 
-          if (req.headers['x-hub-signature'] !== `sha1=${hmac.digest('hex')}`) {
-            this.emit('error', new Error('Message integrity check failed'))
-            return res.end(JSON.stringify({status: 'not ok', error: 'Message integrity check failed'}))
-          }
+          console.warning("Skipping message signature check.")
+          // console.log("Checking message signature...")
+          // if (req.headers['x-hub-signature'] !== `sha1=${hmac.digest('hex')}`) {
+          //   console.log("calc'd SHA1: ", hmac.digest('hex'))
+          //   this.emit('error', new Error('Message integrity check failed'))
+          //   return res.end(JSON.stringify({status: 'not ok', error: 'Message integrity check failed'}))
+          // }
         }
 
         let parsed = JSON.parse(body)
